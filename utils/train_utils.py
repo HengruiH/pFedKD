@@ -73,13 +73,30 @@ def evaluate(model, X_test, y_test, device, batch_size):
     total_samples = 0
     
     with torch.no_grad():
-        for i in range(0, len(X_test), batch_size):
-            end_idx = min(i + batch_size, len(X_test))
-            X_batch = X_test[i:end_idx].to(device)
+        for i in range(0, len(y_test), batch_size):
+            end_idx = min(i + batch_size, len(y_test))
+            #X_batch = X_test[i:end_idx].to(device)
+            #y_batch = y_test[i:end_idx].to(device)
+            if isinstance(X_test, tuple):  # BERT-style inputs
+                    input_ids, attention_mask = X_test
+                    X_batch = (input_ids[i:end_idx].to(device), attention_mask[i:end_idx].to(device))
+            else:  # CNN/MNIST-style inputs
+                    X_batch = X_test[i:end_idx].to(device)
+
             y_batch = y_test[i:end_idx].to(device)
+             
             output = model(X_batch)
             pred = output.argmax(dim=1)
             total_correct += pred.eq(y_batch).sum().item()
             total_samples += len(y_batch)
     
     return total_correct / total_samples if total_samples > 0 else 0.0
+
+
+def move_to_device(x, device):
+    if isinstance(x, tuple):
+        return tuple(t.to(device) for t in x)
+    elif isinstance(x, list):
+        return [move_to_device(t, device) for t in x]
+    else:
+        return x.to(device)

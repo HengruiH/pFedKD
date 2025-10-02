@@ -8,6 +8,7 @@ from models.mlr import MLR
 from models.mlp import MLP
 from models.synthetic_mlr import SyntheticMLR  
 from models.synthetic_mlp import SyntheticMLP
+from models.bert import distilbert
 from algorithms.pfedkd import pfedkdServer      
 from algorithms.fedavg import FedAvgServer
 from algorithms.fedprox import FedProxServer
@@ -19,8 +20,8 @@ print("All modules imported")
 def main():
     parser = argparse.ArgumentParser(description="Federated Learning Comparison")
     parser.add_argument('--algorithm', type=str, choices=['pfedkd', 'fedavg', 'fedprox', 'perfedavg', 'pfedme', 'fedgkd'], required=True)   
-    parser.add_argument('--dataset', type=str, choices=['mnist', 'synthetic'], required=True)
-    parser.add_argument('--model', type=str, choices=['mlr', 'mlp'], required=True)
+    parser.add_argument('--dataset', type=str, choices=['mnist', 'synthetic', 'agnews'], required=True)
+    parser.add_argument('--model', type=str, choices=['mlr', 'mlp', 'bert'], required=True)
     parser.add_argument('--rounds', type=int, default=200)
     parser.add_argument('--n_clients', type=int, default=20)
     parser.add_argument('--alpha_diric', type=float, required=True, help='Dirichlet parameter for MNIST data')
@@ -82,6 +83,9 @@ def main():
     elif args.dataset == 'synthetic':
         print("Loading synthetic data from file")
         client_data = torch.load("data/synthetic_data.pt")
+    elif args.dataset == 'agnews':
+        print("Loading AG News data from file")
+        client_data = torch.load("data/agnews05.pt")
         if len(client_data) != args.n_clients:
             raise ValueError(f"Saved data has {len(client_data)} clients, but {args.n_clients} were requested")
     print("Data loaded")
@@ -91,6 +95,8 @@ def main():
         model_class = MLR if args.model == 'mlr' else MLP
     elif args.dataset == 'synthetic':
         model_class = SyntheticMLR if args.model == 'mlr' else SyntheticMLP
+    elif args.dataset == 'agnews':
+        model_class = distilbert
 
     # Run simulations
     print(f"\nRunning {args.algorithm.upper()} Simulations")
