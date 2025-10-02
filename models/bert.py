@@ -20,9 +20,9 @@ class DistilBert(DistilBertPreTrainedModel):
             self.classifier = nn.Linear(256,config.num_labels)
         else:
             self.classifier = nn.Linear(config.dim, config.num_labels)
-        print(config.num_labels)
+        #print(config.num_labels)
 
-    def forward(self,input, start_layer_idx = 0):
+    def forward(self, input, start_layer_idx = 0):
         if start_layer_idx >= 0:
             input_ids, attention_mask = input
             distilbert_output = self.distilbert(input_ids=input_ids,
