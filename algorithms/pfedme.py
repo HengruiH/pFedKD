@@ -4,11 +4,12 @@ import random
 import torch.nn.functional as F
 from utils.train_utils import evaluate
 import copy
+from utils.train_utils import move_to_device
 
 class UserpFedMe:
     def __init__(self, user_id, data, model, device, local_epochs, batch_size, learning_rate, lamda, K, personal_learning_rate):
         self.id = user_id
-        self.X_train, self.y_train, self.X_test, self.y_test = [d.to(device) for d in data]
+        self.X_train, self.y_train, self.X_test, self.y_test = [move_to_device(d, device) for d in data]
         self.model = model  # theta_i, updated to theta_i^K
         self.local_model = copy.deepcopy(model)  # w^t, updated to w_i^{t+1}
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=personal_learning_rate)
@@ -18,6 +19,7 @@ class UserpFedMe:
         self.learning_rate = learning_rate  # eta
         self.lamda = lamda
         self.K = K
+        self.is_bert = hasattr(model, 'distilbert')
     
     def set_parameters(self, global_model):
         """Set local_model to global parameters."""
@@ -26,7 +28,7 @@ class UserpFedMe:
     def train(self):
         """Train as per original pFedMe."""
         self.model.train()
-        n_samples = self.X_train.size(0)
+        n_samples = self.y_train.size(0)
         
         for _ in range(self.local_epochs):
             X, y = self.get_next_train_batch(n_samples)
@@ -51,25 +53,82 @@ class UserpFedMe:
     def get_next_train_batch(self, n_samples):
         """Sample a random batch from training data."""
         indices = torch.randperm(n_samples)[:self.batch_size]
-        return self.X_train[indices], self.y_train[indices]
+        if self.is_bert:
+            input_ids, attention_mask = self.X_train
+            X_batch = (input_ids[indices], attention_mask[indices])
+        else:
+            X_batch = self.X_train[indices]
+        return X_batch, self.y_train[indices]
     
     def evaluate(self):
         """Evaluate global model (self.model after set_parameters)."""
         self.model.eval()
+        total_train_loss = 0.0
+        total_test_accuracy = 0.0
+        num_train_batches = 0
+        #num_test_batches = 0
+        
         with torch.no_grad():
-            output = self.model(self.X_train)
-            loss = F.nll_loss(output, self.y_train).item() # Loss on training data
-            accuracy = evaluate(self.model, self.X_test, self.y_test, self.device, self.batch_size)
-        return accuracy, loss
+            # Evaluate on training data in batches
+            indices = torch.randperm(len(self.y_train)).to(self.device)
+            for i in range(0, len(self.y_train), self.batch_size):
+                batch_indices = indices[i:min(i + self.batch_size, len(self.y_train))]
+                if self.is_bert:  # Handle DistilBERT-style tuple inputs
+                    input_ids, attention_mask = self.X_train
+                    X_batch = (input_ids[batch_indices], attention_mask[batch_indices])
+                else:  # Handle MLP-style single tensor inputs
+                    X_batch = self.X_train[batch_indices]
+                y_batch = self.y_train[batch_indices]
+                
+                output = self.model(X_batch)
+                train_loss = F.nll_loss(output, y_batch).item()
+                total_train_loss += train_loss
+                num_train_batches += 1
+            
+            # Evaluate on test data in batches
+            if self.is_bert:
+                test_accuracy = evaluate(self.model, self.X_test, self.y_test, self.device, self.batch_size)
+            else:
+                test_accuracy = evaluate(self.model, self.X_test, self.y_test, self.device, self.batch_size)
+            total_test_accuracy = test_accuracy  # evaluate() already processes test data in batches
+
+        avg_train_loss = total_train_loss / num_train_batches if num_train_batches > 0 else 0.0
+        return total_test_accuracy, avg_train_loss
     
     def evaluate_personalized(self):
         """Evaluate personalized model (self.model after training)."""
         self.model.eval()
+        total_train_loss = 0.0
+        total_test_accuracy = 0.0
+        num_train_batches = 0
+        #num_test_batches = 0
+        
         with torch.no_grad():
-            output = self.model(self.X_test)
-            loss = F.nll_loss(output, self.y_test).item()
-            accuracy = evaluate(self.model, self.X_test, self.y_test, self.device, self.batch_size)
-        return accuracy, loss
+            # Evaluate on training data in batches
+            indices = torch.randperm(len(self.y_test)).to(self.device)
+            for i in range(0, len(self.y_test), self.batch_size):
+                batch_indices = indices[i:min(i + self.batch_size, len(self.y_test))]
+                if self.is_bert:  # Handle DistilBERT-style tuple inputs
+                    input_ids, attention_mask = self.X_test
+                    X_batch = (input_ids[batch_indices], attention_mask[batch_indices])
+                else:  # Handle MLP-style single tensor inputs
+                    X_batch = self.X_test[batch_indices]
+                y_batch = self.y_test[batch_indices]
+
+                output = self.model(X_batch)
+                train_loss = F.nll_loss(output, y_batch).item()
+                total_train_loss += train_loss
+                num_train_batches += 1
+            
+            # Evaluate on test data in batches
+            if self.is_bert:
+                test_accuracy = evaluate(self.model, self.X_test, self.y_test, self.device, self.batch_size)
+            else:
+                test_accuracy = evaluate(self.model, self.X_test, self.y_test, self.device, self.batch_size)
+            total_test_accuracy = test_accuracy  # evaluate() already processes test data in batches
+
+        avg_train_loss = total_train_loss / num_train_batches if num_train_batches > 0 else 0.0
+        return total_test_accuracy, avg_train_loss
 
 class pfedmeServer:
     def __init__(self, client_data, model_class, device, local_epochs, batch_size, learning_rate,
