@@ -10,12 +10,26 @@ class FedAvgUser:
         self.id = user_id
         self.X_train, self.y_train, self.X_test, self.y_test = [move_to_device(d, device) for d in data]
         self.model = model
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
         self.device = device
         self.local_epochs = local_epochs
         self.batch_size = batch_size
         self.is_bert = hasattr(model, 'distilbert')
-    
+        # Choose optimizer based on model type
+        if self.is_bert:
+            # AdamW for DistilBERT / Transformer models
+            self.optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=learning_rate,
+                weight_decay=0.0   
+            )
+        else:
+            # SGD for all other models
+            self.optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=learning_rate
+            )
+
+
     def train(self, global_model):
         self.model.load_state_dict(global_model.state_dict())
         self.model.train()

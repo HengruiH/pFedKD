@@ -12,7 +12,6 @@ class UserpFedMe:
         self.X_train, self.y_train, self.X_test, self.y_test = [move_to_device(d, device) for d in data]
         self.model = model  # theta_i, updated to theta_i^K
         self.local_model = copy.deepcopy(model)  # w^t, updated to w_i^{t+1}
-        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=personal_learning_rate)
         self.device = device
         self.local_epochs = local_epochs
         self.batch_size = batch_size
@@ -20,6 +19,20 @@ class UserpFedMe:
         self.lamda = lamda
         self.K = K
         self.is_bert = hasattr(model, 'distilbert')
+        # Choose optimizer based on model type
+        if self.is_bert:
+            # AdamW for DistilBERT / Transformer models
+            self.optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=learning_rate,
+                weight_decay=0.0   
+            )
+        else:
+            # SGD for all other models
+            self.optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=personal_learning_rate
+            )
     
     def set_parameters(self, global_model):
         """Set local_model to global parameters."""
