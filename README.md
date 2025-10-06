@@ -5,18 +5,20 @@ Full paper: https://www.mdpi.com/1999-4893/18/5/274
 
 # Datasets 
 ## Image classification: MNIST and Synthetic
-- Generating Non-IID MNIST data: Following the approach suggested by Hsu et al., we generated non-IID settings across clients using a Dirichlet distribution with parameter $ \alpha $, and we evaluated two non-IID settings, each with 20 and 50 clients. 
+- Generating Non-IID MNIST data: Following the approach suggested by Hsu et al., we generated non-IID settings across clients using a Dirichlet distribution with parameter $\alpha$, and we evaluated two non-IID settings, each with 20 and 50 clients. 
     - Generate MNIST data by running 'MNIST_dirichlet.py'
     - Setting 1: Dirichlet distribution with $\alpha=0.05$
     - Setting 2: Dirichlet distribution with $\alpha=0.5$, selects the top two classes with the highest proportions, ensuring each client holds data for exactly two digits. 
 - Generating Non-IID Synthetic data: The synthetic dataset was generated following the methodology of Li et al. It consists of 100 clients for each client.
     - Generate Synthetic data by running 'synthetic.py'
+## News Topic Classification: AG News dataset
+- Using the same method as above, we generated non-IID AG news dataset with 20 clients and Dirichlet distribution with $\alpha=0.5$  
 
 # Experiments and Results
 A main file 'main.py' performs all experiments in the paper.  
 We compared the empirical performance of our method with that of FedAvg, FedProx, PerFedAvg, pFedMe and FedGKD. 
 ## Effect of the Hyperparameter
-First, we evaluated the effect of the KD weight parameter $ \gamma $ in our algorithm, we conducted experiments on the MNIST data with top two classes per client for two models: a MLR model and a MLP model with $ \gamma = 0.1, 0.3, 0.5, 0.7, 0.9$. 
+First, we evaluated the effect of the KD weight parameter $\gamma$ in our algorithm, we conducted experiments on the MNIST data with top two classes per client for two models: a MLR model and a MLP model with $\gamma = 0.1, 0.3, 0.5, 0.7, 0.9$. 
 - run commonds below by specifying '--kd_weight' for different $\gamma$ and '--model' for different model
 <pre><code>
 python main.py --algorithm pfedkd --dataset mnist --alpha_diric 0.5 --n_clients 20 --model mlr --rounds 800 --local_epochs 20 --batch_size 20 --learning_rate 0.01 --kd_weight 0.1 --c 0.25 --sim_n 10
@@ -48,7 +50,7 @@ This table summarizes the average test accuracy after 600 training rounds across
     python main.py --algorithm pfedkd --dataset mnist --alpha_diric 0.05 --n_clients 20 --model mlp --rounds 600 --local_epochs 20 --batch_size 20 --learning_rate 0.02 --kd_weight 0.1 --c 0.25 --sim_n 10
     python main.py --algorithm pfedkd --dataset mnist --alpha_diric 0.05 --n_clients 50 --model mlp --rounds 600 --local_epochs 20 --batch_size 20 --learning_rate 0.02 --kd_weight 0.1 --c 0.25 --sim_n 10
     </code></pre>
-<img src="figures/performancetable.png" alt="hyperparameters" width="800">
+<img src="figures/performancetable.png" alt="MNISTperformance" width="800">
 
 ## Test accuracy comparison on synthetic data
 Similarly this table depicts the performance on the synthetic dataset using MLR and MLP models, respectively.
@@ -60,5 +62,33 @@ python main.py --algorithm pfedkd --dataset synthetic --alpha_diric 0.5 --n_clie
 <pre><code>
 python main.py --algorithm pfedkd --dataset synthetic --alpha_diric 0.5 --n_clients 20 --model mlp --rounds 600 --local_epochs 20 --batch_size 20 --learning_rate 0.01 --kd_weight 0.1 --c 0.25 --sim_n 10
 </code></pre>
-<img src="figures/tablesynthetic.png" alt="hyperparameters" width="800">
+<img src="figures/tablesynthetic.png" alt="syntheticperformance" width="800">
+
+## Test accuracy comparison on AG news dataset 
+A fine-tuned DistillBERT model was employed for the news topic classification for AG news dataset. 
+<pre><code>
+python main.py --algorithm pfedkd --dataset agnews --alpha_diric 0.5 --n_clients 20 --model bert --rounds 10 --local_epochs 1 --batch_size 32 --learning_rate 1e-5 --kd_weight 0.1 --c 0.25 --sim_n 10  
+</code></pre>
+<img src="figures/NLP_table.png" alt="NLPperformance" width="800">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
